@@ -40,10 +40,10 @@ function RealtimeDashboard({ user }) {
 
   const connectWebSocket = () => {
     try {
-      // Use WebSocket connection to backend
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const host = window.location.hostname
-      const wsUrl = `${protocol}//${host}:8000/ws/${user.id}`
+      const origin = import.meta.env.VITE_API_URL
+        ? import.meta.env.VITE_API_URL.replace('https://', 'wss://').replace('http://', 'ws://')
+        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+      const wsUrl = `${origin}/ws/${user.id}`
       const ws = new WebSocket(wsUrl)
       
       ws.onopen = () => {

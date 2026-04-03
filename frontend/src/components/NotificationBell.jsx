@@ -8,16 +8,17 @@ function NotificationBell({ user }) {
   const wsRef = useRef(null)
 
   useEffect(() => {
-    // Connect to WebSocket for real-time notifications
+    // Connect to WebSocket for real-time notifications (backend: GET /ws/{user_id})
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token || !user?.id) return
 
-    const wsUrl = import.meta.env.VITE_API_URL 
-      ? import.meta.env.VITE_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws'
-      : `ws://localhost:8000/ws`
+    const origin = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace('https://', 'wss://').replace('http://', 'ws://')
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+    const wsUrl = `${origin}/ws/${user.id}`
 
     try {
-      wsRef.current = new WebSocket(`${wsUrl}?token=${token}`)
+      wsRef.current = new WebSocket(wsUrl)
       
       wsRef.current.onopen = () => {
         console.log('WebSocket connected for notifications')
@@ -68,7 +69,7 @@ function NotificationBell({ user }) {
         wsRef.current.close()
       }
     }
-  }, [])
+  }, [user?.id])
 
   // Close panel when clicking outside
   useEffect(() => {

@@ -38,6 +38,9 @@ from analytics import predict_hotspots, detect_anomalies, get_trend_forecast, ge
 from pdf_generator import generate_daily_sitrep_pdf, generate_weekly_sitrep_pdf
 import json
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -135,16 +138,23 @@ async def login(
     user.last_login = datetime.utcnow()
     db.commit()
     
-    # Audit log login
+    # Audit log login (never block auth if audit table/commit fails in production)
     ip_address = request.client.host if request else None
     user_agent = request.headers.get("user-agent") if request else None
-    log_action(
-        db, user, "LOGIN", "USER", 
-        ip_address=ip_address, 
-        user_agent=user_agent,
-        details={"login_time": datetime.utcnow().isoformat(), "rank": user.rank}
-    )
-    
+    try:
+        log_action(
+            db, user, "LOGIN", "USER",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details={"login_time": datetime.utcnow().isoformat(), "rank": user.rank},
+        )
+    except Exception as e:
+        logger.exception("LOGIN audit log failed: %s", e)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
     access_token = create_access_token(data={"sub": user.username, "state": user.state, "rank": user.rank})
     return {"access_token": access_token, "token_type": "bearer"}
 
